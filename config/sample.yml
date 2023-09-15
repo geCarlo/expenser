@@ -1,0 +1,62 @@
+categories:
+  essentials:
+    gas:
+    - PHILLIPS 66
+    - CIRCLE K
+    - GOODSTOP
+    - SPEEDWAY
+    groceries:
+    - KING SOOPERS
+    - COSTCO WHSE
+    insurance:
+    - ALLSTATE
+    living:
+    - RENT
+    - COMCAST
+  shopping:
+    clothes:
+    - NORDSTROM-RACK
+    - GYMSHARK
+    - REI
+    tennis:
+    - GAME-SET-MATCH
+    projects:
+    - LOWE
+    - DEPOT
+    - TARGET
+    - WAL-MART
+  subscriptions:
+    streaming:
+    - DISNEY PLUS
+    - MAX.COM
+    - APPLE.COM
+    - PEACOCK TV
+    gym:
+    - LIFETIME
+    skills:
+    - UDEMY
+    projects:
+    - AMAZON WEB SERVICES
+  travel:
+    flights:
+    - FRONTIER
+    - UNITED
+    hotels:
+    - MARRIOTT
+    - AIRBNB
+    parking:
+    - PRKG
+    - PARKMOBILE
+    - PARKING
+  bank:
+    investments:
+    - SCHWAB
+    - AMER CENT
+  dining:
+    fine:
+    - TORCHYS
+    fast:
+    - CHICKFILA
+transfers:
+  - VENMO
+  - ZELLE PAYMENT
