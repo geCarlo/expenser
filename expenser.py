@@ -142,8 +142,8 @@ def load_config(budget_obj):
         print("please select a config you'd like to load:")
         budget_obj.CONFIG_FILE = select_data_file(budget_obj.CONFIG_DIR, 'yaml')
 
-        with open(budget_obj.CONFIG_FILE, 'r') as f:
-            budget_obj.DATA = list(yaml.load_all(f, Loader = yaml.loader.SafeLoader))
+    with open(budget_obj.CONFIG_FILE, 'r') as f:
+        budget_obj.DATA = list(yaml.load_all(f, Loader = yaml.loader.SafeLoader))
     
 def write_config(budget_obj):
     with open(budget_obj.CONFIG_FILE, 'w') as f:
@@ -181,7 +181,17 @@ def main():
     
         dataFile = fill_categories(dataFile, budget)
 
-        resolve_nulls(dataFile, budget)
+        na_count = np.count_nonzero(dataFile.isnull())
+        tot_expenses = len(dataFile.index)
+
+        if (tot_expenses - na_count) is not tot_expenses:
+            print(f"WARNING - {na_count} / {tot_expenses} expenses without a category")
+            resp = input("do you wish to resolve? (Y/N)")
+            if resp.upper() == 'Y':
+                resolve_nulls(dataFile, budget)
+            else:
+                print("skipping..")
+     
         process_transfers(dataFile, budget)
 
         # TODO: process NaN's (and save config for new keywords in categories)
@@ -194,12 +204,6 @@ def main():
         df = pd.read_csv(dataFile, sep=',')
 
         # TODO: create stacked bar for plot
-
-        na_count = np.count_nonzero(df.isnull())
-        tot_expenses = len(df.index)
-
-        if (tot_expenses - na_count) is not tot_expenses:
-            print(f"WARNING - {na_count} / {tot_expenses} expenses without a category")
 
         display_data(df)
 
