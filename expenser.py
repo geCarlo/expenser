@@ -68,7 +68,7 @@ def select_data_file(location, file_type):
     return return_file
 
 def fill_categories(df_processed, budge):
-    categories = budge.DATA[0]['categories']
+    categories = budge.DATA[0]['expenses']
     for index, row in df_processed.iterrows():
         description = row['Description'].upper()
         for key in categories:
@@ -79,35 +79,53 @@ def fill_categories(df_processed, budge):
                         df_processed.loc[index, 'Category'] = key
     return df_processed
 
-def resolve_nulls(df_processed, budge):
-    categories = budge.DATA[0]['categories']
-    print("processing expenses with no categories..")
+def fill_transfers(df_processed, budge):
+    transfers = budge.DATA[0]['misc']['transfers']['extern']
+    for index, row in df_processed.iterrows():
+        description = row['Description'].upper()
+        for transfer in transfers:
+            if transfer.upper() in description:
+                df_processed.loc[index, 'Category'] = 'transfer'
+    return df_processed
+
+def fill_unassigned(df_processed):
     for index, row in df_processed.iterrows():
         if pd.isna(row['Category']):
-            print(f"{row['Date']} {row['Amount']} {row['Description'].upper()}")
+            df_processed.loc[index, 'Category'] = 'unassigned'
+    return df_processed
 
-            keyword = input("enter a keyword for the expense above: ")
-            cat_list = list(categories)
-            terminal_menu = TerminalMenu(cat_list)
-            menu_entry_index = terminal_menu.show()
-            cat = cat_list[menu_entry_index]
-            print(f"prime category selected is {cat}")
-            
-            sub_list = list(categories[cat])
-            terminal_menu = TerminalMenu(sub_list)
-            menu_entry_index = terminal_menu.show()
-            sub = sub_list[menu_entry_index]
-            print(f"sub category selected is {sub}")
+def resolve_unassigned(df_processed, budge):
+    categories = budge.DATA[0]['expenses']
+    print("processing expenses with no categories..")
+    for index, row in df_processed.iterrows():
+        if row['Category'] == 'unassigned':
+            description = row['Description'].upper()
+            print(f"{row['Date']} {row['Amount']} {description}")
+            keyword = input("enter a keyword for the expense above (or 'skip'): ")
 
-            budge.DATA[0]['categories'][cat][sub].append(keyword)
-            write_config(budge)
-            load_config(budge)
+            if keyword == 'skip':
+                print(f"skipping {description}")
+                continue
+            else:
+                if keyword not in description:
+                    print(f"WARNING - {description} does not contain {keyword}! \
+                          Fix manually in config file if this was a mistake..")
+                    
+                cat_list = list(categories)
+                terminal_menu = TerminalMenu(cat_list)
+                menu_entry_index = terminal_menu.show()
+                cat = cat_list[menu_entry_index]
+                print(f"prime category selected is {cat}")
+                
+                sub_list = list(categories[cat])
+                terminal_menu = TerminalMenu(sub_list)
+                menu_entry_index = terminal_menu.show()
+                sub = sub_list[menu_entry_index]
+                print(f"sub category selected is {sub}")
 
-def display_data(df):
-    category_sums = df.groupby('Category').sum()*-1
-    ax = category_sums.plot.bar(y='Amount')
-    plt.xticks(rotation=45)
-    plt.show()
+                budge.DATA[0]['expenses'][cat][sub].append(keyword)
+                write_config(budge)
+                load_config(budge)                
 
 def write_to_csv(df_new):
     df_cur = pd.DataFrame()
@@ -151,11 +169,29 @@ def write_config(budget_obj):
 
 def process_transfers(df, budget_obj):
     # TODO: finish this
-    transfers = budget_obj.DATA[0]['transfers']
+    transfers = budget_obj.DATA[0]['misc']['transfers']['extern']
     for index, row in df.iterrows():
         for transfer in transfers:
             if transfer in row['Description'].upper():
                 print(f"transfer found: {row['Date']} {row['Amount']} {row['Description']}")
+
+def contains_unassigned(df):
+    un_count = (df['Category']=='unassigned').sum()
+    print(df)
+    tot_expenses = len(df.index)
+
+    if (tot_expenses - un_count) < tot_expenses:
+        print(f"WARNING - {un_count} / {tot_expenses} expenses without a category")
+        return True
+    else:
+        print("NOTICE - no unassigned expenses. good job")
+        return False
+
+def display_data(df):
+    category_sums = df.groupby('Category').sum()*-1
+    ax = category_sums.plot.bar(y='Amount')
+    plt.xticks(rotation=45)
+    plt.show()
 
 def main():
     parser = ArgumentParser(description = "budget tracker utility")
@@ -166,9 +202,10 @@ def main():
     args = parser.parse_args()
 
     budget = expenser()
-    load_config(budget)
 
     if args.process:
+        load_config(budget)
+
         print("please select a file you'd like to process")
         rawDataFile = select_data_file(budget.DATA_RAW_DIR, 'csv')
         if 'chase' in rawDataFile.lower():
@@ -180,21 +217,19 @@ def main():
             exit(1)
     
         dataFile = fill_categories(dataFile, budget)
+        dataFile = fill_transfers(dataFile, budget)
+        dataFile = fill_unassigned(dataFile)
 
-        na_count = np.count_nonzero(dataFile.isnull())
-        tot_expenses = len(dataFile.index)
+        # TODO: filter out internal transfers
 
-        if (tot_expenses - na_count) is not tot_expenses:
-            print(f"WARNING - {na_count} / {tot_expenses} expenses without a category")
+        if (contains_unassigned(dataFile)):
             resp = input("do you wish to resolve? (Y/N)")
             if resp.upper() == 'Y':
-                resolve_nulls(dataFile, budget)
+                resolve_unassigned(dataFile, budget)
             else:
                 print("skipping..")
      
         process_transfers(dataFile, budget)
-
-        # TODO: process NaN's (and save config for new keywords in categories)
 
         write_to_csv(dataFile)
 
@@ -203,6 +238,7 @@ def main():
         dataFile = select_data_file(budget.PROC_RAW_DIR, 'csv')
         df = pd.read_csv(dataFile, sep=',')
 
+        contains_unassigned(df)
         # TODO: create stacked bar for plot
 
         display_data(df)

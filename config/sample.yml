@@ -1,4 +1,4 @@
-categories:
+expenses:
   essentials:
     gas:
     - PHILLIPS 66
@@ -48,15 +48,18 @@ categories:
     - PRKG
     - PARKMOBILE
     - PARKING
-  bank:
-    investments:
-    - SCHWAB
-    - AMER CENT
   dining:
     fine:
     - TORCHYS
     fast:
     - CHICKFILA
-transfers:
-  - VENMO
-  - ZELLE PAYMENT
+misc:
+  investments:
+  - SCHWAB
+  - AMER CENT
+  transfers:
+    extern:
+    - VENMO
+    - ZELLE PAYMENT
+    intern:
+    - PAYMENT THANK YOU-MOBILE
