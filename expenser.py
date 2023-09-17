@@ -76,7 +76,7 @@ def fill_categories(df_processed, budge):
                 entry_list = list(categories[key][subcat])
                 for entry in entry_list:
                     if entry.upper() in description:
-                        df_processed.loc[index, 'Category'] = key
+                        df_processed.at[index, 'Category'] = key
     return df_processed
 
 def fill_transfers(df_processed, budge):
@@ -85,13 +85,21 @@ def fill_transfers(df_processed, budge):
         description = row['Description'].upper()
         for transfer in transfers:
             if transfer.upper() in description:
-                df_processed.loc[index, 'Category'] = 'transfer'
+                df_processed.at[index, 'Category'] = 'transfer'
+
+    # drop internal transfers, they mean nothing
+    intern_transfers = budge.DATA[0]['misc']['transfers']['intern']
+    for index, row in df_processed.iterrows():
+        description = row['Description'].upper()
+        for transfer in intern_transfers:
+            if transfer.upper() in description:
+                df_processed.drop(index, inplace=True)
     return df_processed
 
 def fill_unassigned(df_processed):
     for index, row in df_processed.iterrows():
         if pd.isna(row['Category']):
-            df_processed.loc[index, 'Category'] = 'unassigned'
+            df_processed.at[index, 'Category'] = 'unassigned'
     return df_processed
 
 def resolve_unassigned(df_processed, budge):
@@ -99,17 +107,20 @@ def resolve_unassigned(df_processed, budge):
     print("processing expenses with no categories..")
     for index, row in df_processed.iterrows():
         if row['Category'] == 'unassigned':
+
+            # TODO: need to find a better way to refresh dataframe after update
+
             description = row['Description'].upper()
             print(f"{row['Date']} {row['Amount']} {description}")
             keyword = input("enter a keyword for the expense above (or 'skip'): ")
 
-            if keyword == 'skip':
+            if not keyword or keyword == 'skip':
                 print(f"skipping {description}")
                 continue
             else:
                 if keyword not in description:
-                    print(f"WARNING - {description} does not contain {keyword}! \
-                          Fix manually in config file if this was a mistake..")
+                    print(f"WARNING - {description} does not contain {keyword}! " \
+                          "Fix manually in config file if this was a mistake..")
                     
                 cat_list = list(categories)
                 terminal_menu = TerminalMenu(cat_list)
@@ -123,9 +134,14 @@ def resolve_unassigned(df_processed, budge):
                 sub = sub_list[menu_entry_index]
                 print(f"sub category selected is {sub}")
 
+                load_config(budge)  # load in case config was changed while waiting for input
+
                 budge.DATA[0]['expenses'][cat][sub].append(keyword)
+                
                 write_config(budge)
-                load_config(budge)                
+                df_processed = fill_categories(df_processed, budge)
+
+                # TODO: need to run through rest of dataframe to update any config changes
 
 def write_to_csv(df_new):
     df_cur = pd.DataFrame()
@@ -139,7 +155,7 @@ def write_to_csv(df_new):
     new_rows_total = len(df_new.index)
 
     df_comb = pd.concat([df_cur, df_new])
-    df_dup = df_new[df_new.duplicated(keep=False)]
+    df_dup = df_new[df_new.duplicated(keep=False)]  # TODO: this isn't quite right - some double charges are valid
 
     if len(df_dup.index) > 1:
         print("WARNING - duplicates found in raw report")
@@ -177,7 +193,6 @@ def process_transfers(df, budget_obj):
 
 def contains_unassigned(df):
     un_count = (df['Category']=='unassigned').sum()
-    print(df)
     tot_expenses = len(df.index)
 
     if (tot_expenses - un_count) < tot_expenses:
